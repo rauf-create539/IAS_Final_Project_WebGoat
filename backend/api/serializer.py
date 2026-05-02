@@ -9,28 +9,51 @@ from .models import Note, WebGoatLesson, LessonCompletion
 class UserSerializer(serializers.ModelSerializer): 
     class Meta: 
         model = User
-        fields = ['id', 'username', 'password']
+        fields = ['id', 'username', 'email' ,'password']
         extra_kwargs = {
-            'password': {'write_only': True}
+            'password': {'write_only': True},
+            'email': {'required': True},
         }
         
     def validate_username(self, value):
         return escape(value)
     
-    def validated_password(self, value):
+    def validate_password(self, value):
         validate_password(value)
+        return value
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("This email is already in use. Try another email.")
         return value
     
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
     
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'email'
+
     def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
         try:
-            data = super().validate(attrs)
-        except Exception:
-            raise AuthenticationFailed('Invalid credentials')
-        return data
+            user = User.objects.get(email=email)     
+        except User.DoesNotExist:
+            raise AuthenticationFailed('No account found with this email.')
+
+        if not user.check_password(password):
+            raise AuthenticationFailed('Incorrect password.')
+
+        if not user.is_active:
+            raise AuthenticationFailed('This account is inactive.')
+
+        refresh = self.get_token(user)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+    
 class NoteSerializer(serializers.ModelSerializer):  
     class Meta: 
         model=Note

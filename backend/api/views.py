@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework import generics, status 
+from rest_framework.decorators import api_view, permission_classes
 from .models import Note, WebGoatLesson, LessonCompletion
 from rest_framework.views import APIView
 from rest_framework.response import Response 
@@ -14,6 +15,14 @@ class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    return Response({
+        'username': request.user.username,
+        'email': request.user.email,
+    })
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer  

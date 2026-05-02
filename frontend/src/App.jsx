@@ -1,7 +1,12 @@
 import React from 'react';
-import { Routes, Route } from "react-router-dom";
-import Lesson from './components/Lesson'; // Matches filename in src_2.zip
-import Login from './components/Login';   // Matches filename in src_2.zip
+import { Routes, Route, Navigate } from "react-router-dom";
+import Lesson from './components/Lesson';
+import Login from './components/Login';
+
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('access_token');
+  return token ? children : <Navigate to="/" replace />;
+};
 
 const App = () => {
   return (
@@ -25,9 +30,13 @@ const App = () => {
         }
       />
       <Route path="/login" element={<Login />} />
-      <Route path="/lesson" element={<Lesson />} />
+      <Route path="/lesson" element={
+        <ProtectedRoute>
+          <Lesson />
+        </ProtectedRoute>
+      } />
     </Routes>
   );
-}; 
+};
 
 export default App;

@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LogoutModal from '../modals/LogoutModal';
+import api from '../api';
 
 const Lesson = () => {
     const navigate = useNavigate();
+    const [username, setUsername] = useState('');
+    const [isCompleted, setIsCompleted] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [query, setQuery] = useState('');
     const [feedback, setFeedback] = useState({ message: '', type: '', explanation: '' });
+
+    useEffect(() => {
+        api.get('/user/')
+            .then(res => setUsername(res.data.username))
+            .catch(() => navigate('/'));
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        navigate('/');
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -14,16 +31,28 @@ const Lesson = () => {
 
         if (containsInsecure) {
             setFeedback({
-                message: "⚠️ Potential SQL Injection detected!",
+                message: "Potential SQL Injection detected!",
                 type: "error",
-                explanation: "By including characters like `'` or `--`, you are breaking the intended query structure. The single quote `'` closes the data string early, allowing you to append new SQL commands (like `OR 1=1`) that the developer didn't intend to run[cite: 1]. Always look out for input that tries to 'escape' its boundaries."
+                explanation: "By including characters like `'` or `--`, you are breaking the intended query structure. The single quote `'` closes the data string early, allowing you to append new SQL commands (like `OR 1=1`) that the developer didn't intend to run. Always look out for input that tries to 'escape' its boundaries."
             });
         } else if (query.toLowerCase().includes("select department from employees")) {
             setFeedback({
-                message: "✅ Correct! You have performed successful SQL Injection",
+                message: "Correct! You wrote a valid SQL query.",
                 type: "success",
-                explanation: "Developer Tip:  Avoid creating weak input fields that directly concatenate strings into your database queries. To close these security gaps, always use 'Prepared Statements' (Parameterized Queries) on your backend server. This ensures that even if a user enters malicious code, the database treats it strictly as harmless data rather than an executable command, protecting your system's confidentiality and integrity. "
+                explanation: (
+                    <>
+                        <p>
+                            This query correctly retrieves the 'department' field from the employees table using a proper SELECT statement. This is how queries are intended to work.
+                        </p>
+                        <p className='mt-4'>
+                            <span className='font-bold'> Security Insight: </span> SQL Injection happens when user input is directly inserted into queries without protection. To prevent this, developers use parameterized queries (prepared statements), which ensure that user input is treated strictly as data—not 
+
+                        </p>
+                    </>
+                )
             });
+
+            setIsCompleted(true);
         } else {
             setFeedback({
                 message: "Try again. Remember to SELECT the department column.",
@@ -35,13 +64,26 @@ const Lesson = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-            {/* Top Navigation Bar with Logout in Top Right */}
+
+            <LogoutModal
+                isOpen={showLogoutModal}
+                onConfirm={handleLogout}
+                onCancel={() => setShowLogoutModal(false)}
+            />
+
             <nav className="w-full bg-white shadow-sm px-8 py-4 flex justify-between items-center mb-8 border-b">
                 <div className="font-black text-xl tracking-tight text-slate-800 uppercase">
                     <span className="text-red-600">WebGoat</span> Lesson
                 </div>
+
+                {username && (
+                    <div className="text-slate-600 font-medium text-lg">
+                        Welcome, <span className="text-slate-900 font-bold">{username}</span>
+                    </div>
+                )}
+
                 <button
-                    onClick={() => navigate("/")}
+                    onClick={() => setShowLogoutModal(true)}
                     className="bg-slate-800 text-white px-5 py-2 rounded-lg font-bold hover:bg-red-700 transition-all shadow-sm text-sm"
                 >
                     Logout
@@ -60,13 +102,23 @@ const Lesson = () => {
                         <div className="space-y-4">
                             <h2 className="text-2xl font-semibold text-cyan-700">What is SQL Injection?</h2>
                             <p className="leading-relaxed">
-                                SQL Injection (SQLi) occurs when an attacker inserts malicious SQL code into an entry field for execution[cite: 1].
-                                This can allow unauthorized parties to view data they are not normally able to retrieve, or even delete entire tables[cite: 1].
+                                SQL Injection (SQLi) occurs when an attacker inserts malicious SQL code into an entry field for execution.
+                                This can allow unauthorized parties to view data they are not normally able to retrieve, or even delete entire tables.
+
+                                <span className="block text-rose-500 font-bold mt-2">
+                                    Example:
+                                </span>
+
+                                If a login form directly concatenates user input into a SQL query, an attacker could input something like{" "}
+                                <code className="bg-slate-100 px-1 rounded text-sm text-rose-400">
+                                    ' OR '1'='1
+                                </code>
+                                , which would make the query return all users instead of just the intended one.
                             </p>
 
                             <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
                                 <p className="text-sm text-amber-800 font-medium italic">
-                                    "Each command type (DML, DDL, DCL) can be used by attackers to compromise confidentiality, integrity, or availability"[cite: 1].
+                                    "Each command type (DML, DDL, DCL) can be used by attackers to compromise confidentiality, integrity, or availability".
                                 </p>
                             </div>
                         </div>
@@ -147,6 +199,23 @@ const Lesson = () => {
                                     <h4 className="font-bold uppercase tracking-wider text-xs mb-2">Deep Dive Explanation:</h4>
                                     {feedback.explanation}
                                 </div>
+                            </div>
+                        )}
+
+                        {isCompleted && (
+                            <div className='mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between'>
+                                <div>
+                                    <h3 className="text-lg font-bold text-emerald-700">
+                                        Lesson Completed!
+                                    </h3>
+                                    <p className="text-sm text-emerald-900">
+                                        You have successfully completed the SQL Injection lesson. Become a better developer by understanding how to write secure SQL queries and protect against injection attacks.
+                                    </p>
+                                </div>
+
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-200 text-emerald-800">
+                                    COMPLETED
+                                </span>
                             </div>
                         )}
                     </section>
